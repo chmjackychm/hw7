@@ -36,10 +36,10 @@ let firebase = require(`./firebase`)
 
 // /.netlify/functions/courses?courseNumber=KIEI-451
 exports.handler = async function(event) {
-
+  // console.log(event)
   // get the course number being requested
   let courseNumber = event.queryStringParameters.courseNumber
-
+  
   // establish a connection to firebase in memory
   let db = firebase.firestore()
 
@@ -68,7 +68,7 @@ exports.handler = async function(event) {
   for (let i=0; i < sections.length; i++) {
     // get the document ID of the section
     let sectionId = sections[i].id
-
+    
     // get the data from the section
     let sectionData = sections[i].data()
 
@@ -82,9 +82,45 @@ exports.handler = async function(event) {
     sectionData.lecturerName = lecturer.name
 
     // add the section data to the courseData
-    courseData.sections.push(sectionData)
+    // courseData.sections.push(sectionData)
 
     // 🔥 your code for the reviews/ratings goes here
+
+    // retrive all relevant documents
+    let reviewsQuery = await db.collection('reviews').where('sectionId', '==', sectionId).get()
+
+    // get review documents
+    let reviewsDoc = reviewsQuery.docs
+
+    // Create a empty data to store info
+    let reviewObject = {
+      avg_rating: [],
+      count_rating: [],
+      review: []
+    }
+
+    // Store total rating and count of review
+    let tot_rating = 0
+    let count = 0
+    for (let reviewIndex = 0; reviewIndex < reviewsDoc.length; reviewIndex ++) {
+      let reviewId = reviewsDoc[reviewIndex].id
+      let reviewData = reviewsDoc[reviewIndex].data()
+
+      // Get total rating
+      tot_rating = tot_rating + reviewData.rating  
+      // Get total count of rating
+      count = count + 1    
+      
+      reviewObject.review.push(reviewData.body)
+      sectionData.review = reviewObject
+
+    }
+    // Push avg rating and count of reviews to data
+    let avg_rating = tot_rating/ count
+    reviewObject.avg_rating.push(avg_rating)
+    reviewObject.count_rating.push(count)
+
+    courseData.sections.push(sectionData)
   }
 
   // return the standard response
